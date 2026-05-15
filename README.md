@@ -36,7 +36,16 @@ docs/                   Dokumen requirement dan API
 
 ## Build Android via GitHub Actions
 
-Workflow `.github/workflows/android-ci.yml` akan menjalankan:
+Workflow `.github/workflows/android-ci.yml` otomatis jalan saat:
+
+- push ke `main`
+- push ke branch `feat/**`, `fix/**`, atau `ci/**`
+- pull request ke `main`
+- dijalankan manual dari tab Actions
+
+Saat branch fitur dipush, workflow juga mencoba membuat Pull Request otomatis ke `main` kalau PR untuk branch itu belum ada.
+
+Workflow build menjalankan:
 
 - `flutter pub get`
 - `flutter analyze`

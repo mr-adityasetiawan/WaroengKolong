@@ -2,12 +2,58 @@ name: Android CI
 
 on:
   push:
-    branches: [main]
+    branches:
+      - main
+      - 'feat/**'
+      - 'fix/**'
+      - 'ci/**'
   pull_request:
     branches: [main]
   workflow_dispatch:
 
+permissions:
+  contents: read
+  pull-requests: write
+
 jobs:
+  auto-pr:
+    name: Auto-create pull request
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref != 'refs/heads/main'
+    steps:
+      - name: Create PR if missing
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const branch = context.ref.replace('refs/heads/', '');
+            const { owner, repo } = context.repo;
+            const existing = await github.rest.pulls.list({
+              owner,
+              repo,
+              state: 'open',
+              head: `${owner}:${branch}`,
+              base: 'main',
+            });
+            if (existing.data.length > 0) {
+              core.info(`PR already exists: ${existing.data[0].html_url}`);
+              return;
+            }
+            const created = await github.rest.pulls.create({
+              owner,
+              repo,
+              head: branch,
+              base: 'main',
+              title: `Auto PR: ${branch}`,
+              body: [
+                'Auto-created by GitHub Actions after branch push.',
+                '',
+                '## Checks',
+                '- Flutter analyze/test/build APK',
+                '- Backend smoke test',
+              ].join('\n'),
+            });
+            core.info(`Created PR: ${created.data.html_url}`);
+
   flutter-android:
     name: Flutter analyze, test, and APK
     runs-on: ubuntu-latest

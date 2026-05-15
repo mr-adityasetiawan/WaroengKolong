@@ -43,7 +43,7 @@ Workflow `.github/workflows/android-ci.yml` otomatis jalan saat:
 - pull request ke `main`
 - dijalankan manual dari tab Actions
 
-Saat branch fitur dipush, workflow juga mencoba membuat Pull Request otomatis ke `main` kalau PR untuk branch itu belum ada.
+Saat branch fitur dipush, workflow juga mencoba membuat Pull Request otomatis ke `main` kalau PR untuk branch itu belum ada. Agar auto-PR aktif, di GitHub repo buka **Settings → Actions → General → Workflow permissions**, pilih **Read and write permissions**, lalu centang **Allow GitHub Actions to create and approve pull requests**.
 
 Workflow build menjalankan:
 

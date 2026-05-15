@@ -3,12 +3,12 @@ const { randomUUID } = require('node:crypto');
 
 const port = Number(process.env.PORT || 8080);
 
+const minimumPortionPerMenu = 20;
+const orderLeadDays = 3;
+
 const menu = [
-  { id: 'm1', name: 'Nasi Ayam Kolong', category: 'Makanan', price: 18000, available: true },
-  { id: 'm2', name: 'Mie Goreng Stan', category: 'Makanan', price: 15000, available: true },
-  { id: 'm3', name: 'Pisang Coklat', category: 'Cemilan', price: 12000, available: true },
-  { id: 'd1', name: 'Es Teh Manis', category: 'Minuman', price: 5000, available: true },
-  { id: 'd2', name: 'Kopi Tubruk', category: 'Minuman', price: 8000, available: true },
+  { id: 'mie-rebus-medan', name: 'Mie Rebus Medan', category: 'Makanan', price: 17000, available: true },
+  { id: 'lontong-medan', name: 'Lontong Medan', category: 'Makanan', price: 15000, available: true },
 ];
 
 const orders = [];
@@ -79,25 +79,35 @@ async function handler(req, res) {
     const items = body.items.map((item) => {
       const source = menu.find((menuItem) => menuItem.id === item.menuItemId);
       if (!source) throw new Error(`Unknown menu item: ${item.menuItemId}`);
+      const qty = Math.max(1, Number(item.qty || 1));
+      if (qty < minimumPortionPerMenu) {
+        throw new Error(`Minimal ${minimumPortionPerMenu} porsi per menu untuk ${source.name}`);
+      }
       return {
         menuItemId: source.id,
         name: source.name,
-        qty: Math.max(1, Number(item.qty || 1)),
+        qty,
         price: source.price,
         note: String(item.note || ''),
       };
     });
+
+    const readyDate = new Date();
+    readyDate.setDate(readyDate.getDate() + orderLeadDays);
 
     const order = {
       id: randomUUID(),
       code: makeOrderCode(),
       customerName: String(body.customerName),
       phone: String(body.phone || ''),
-      diningMode: String(body.diningMode || 'Ambil di stan'),
+      diningMode: String(body.diningMode || 'Order online H-3'),
       status: 'baru',
-      paymentMethod: String(body.paymentMethod || 'Bayar di kasir / QRIS manual'),
+      paymentMethod: String(body.paymentMethod || 'Transfer BCA / ShopeePay'),
+      paymentProofLabel: String(body.paymentProofLabel || 'Bukti bayar terlampir'),
       items,
       total: orderTotal(items),
+      minimumPortionPerMenu,
+      readyDate: readyDate.toISOString(),
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     };
@@ -132,4 +142,4 @@ if (require.main === module) {
   });
 }
 
-module.exports = { server, menu, orders };
+module.exports = { server, menu, orders, minimumPortionPerMenu, orderLeadDays };

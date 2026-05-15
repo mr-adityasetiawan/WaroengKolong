@@ -6,18 +6,21 @@ Aplikasi Android Waroeng Kolong dibuat untuk mempercepat order pelanggan dan ope
 
 ## Role dalam 1 aplikasi
 
-- **Customer**: pilih menu, masuk keranjang, submit order, dapat kode order seperti `WK-002` dan atas nama.
+- **Customer**: pilih `Mie Rebus Medan` / `Lontong Medan`, masuk keranjang, mengikuti aturan minimal 20 porsi per menu + H-3, isi nama/WhatsApp/catatan, tandai bukti bayar, submit order, dapat kode order seperti `WK-002` dan atas nama.
 - **POS Staff**: melihat order masuk, memproses pembayaran manual/QRIS, update status order.
 - **Admin/Owner**: kelola ketersediaan menu, user staf, dan ringkasan penjualan.
 
 ## Alur MVP
 
-1. Pelanggan memilih menu.
-2. Pelanggan mengisi atas nama dan nomor HP.
-3. Pelanggan submit order.
-4. App membuat kode order.
-5. Pelanggan datang ke stan dan menyebut kode + atas nama.
-6. POS staff mencari order dan mengubah status:
+1. Pelanggan memilih `Mie Rebus Medan` atau `Lontong Medan`.
+2. Setiap menu yang dipesan wajib minimal 20 porsi.
+3. Sistem menampilkan aturan pemesanan H-3 dan ready paling cepat 3 hari dari tanggal order.
+4. Pelanggan mengisi atas nama, nomor WhatsApp, dan catatan.
+5. Pelanggan melakukan pembayaran via BCA/ShopeePay sesuai info di app.
+6. Pelanggan menandai bukti bayar/screenshot sudah dipilih.
+7. Pelanggan submit order.
+8. App membuat kode order.
+9. POS staff mencari order dan mengubah status:
    - `Baru`
    - `Dibayar`
    - `Diproses`

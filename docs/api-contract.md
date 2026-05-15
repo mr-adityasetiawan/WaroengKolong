@@ -21,10 +21,10 @@ Response:
 {
   "data": [
     {
-      "id": "m1",
-      "name": "Nasi Ayam Kolong",
+      "id": "mie-rebus-medan",
+      "name": "Mie Rebus Medan",
       "category": "Makanan",
-      "price": 18000,
+      "price": 17000,
       "available": true
     }
   ]
@@ -39,12 +39,13 @@ Request:
 {
   "customerName": "Aditya",
   "phone": "08123456789",
-  "diningMode": "Ambil di stan",
-  "paymentMethod": "Bayar di kasir / QRIS manual",
+  "diningMode": "Order online H-3",
+  "paymentMethod": "Transfer BCA / ShopeePay",
+  "paymentProofLabel": "Bukti bayar terlampir",
   "items": [
     {
-      "menuItemId": "m1",
-      "qty": 2,
+      "menuItemId": "mie-rebus-medan",
+      "qty": 20,
       "note": "Sambal dipisah"
     }
   ]
@@ -60,7 +61,9 @@ Response:
     "code": "WK-001",
     "customerName": "Aditya",
     "status": "baru",
-    "total": 36000
+    "minimumPortionPerMenu": 20,
+    "readyDate": "iso-date-H+3",
+    "total": 340000
   }
 }
 ```

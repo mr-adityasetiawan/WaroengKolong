@@ -8,11 +8,12 @@ enum AppRole { customer, staff, admin }
 
 enum OrderStatus { baru, dibayar, diproses, siapDiambil, selesai, batal }
 
+const int minimumPortionPerMenu = 20;
+
 class MenuItem {
   const MenuItem({
     required this.id,
     required this.name,
-    required this.category,
     required this.price,
     required this.description,
     this.available = true,
@@ -20,17 +21,15 @@ class MenuItem {
 
   final String id;
   final String name;
-  final String category;
   final int price;
   final String description;
   final bool available;
 
-  MenuItem copyWith({String? name, int? price, bool? available}) {
+  MenuItem copyWith({bool? available}) {
     return MenuItem(
       id: id,
-      name: name ?? this.name,
-      category: category,
-      price: price ?? this.price,
+      name: name,
+      price: price,
       description: description,
       available: available ?? this.available,
     );
@@ -38,27 +37,21 @@ class MenuItem {
 }
 
 class CartLine {
-  CartLine({required this.item, this.qty = 1, this.note = ''});
+  CartLine({required this.item, this.qty = minimumPortionPerMenu});
 
   final MenuItem item;
   int qty;
-  String note;
 
   int get subtotal => item.price * qty;
+  bool get validMinimum => qty >= minimumPortionPerMenu;
 }
 
 class OrderItem {
-  const OrderItem({
-    required this.name,
-    required this.qty,
-    required this.price,
-    this.note = '',
-  });
+  const OrderItem({required this.name, required this.qty, required this.price});
 
   final String name;
   final int qty;
   final int price;
-  final String note;
 
   int get subtotal => qty * price;
 }
@@ -68,23 +61,28 @@ class Order {
     required this.code,
     required this.customerName,
     required this.phone,
+    required this.note,
     required this.items,
-    required this.diningMode,
     required this.createdAt,
+    required this.readyDate,
     this.status = OrderStatus.baru,
-    this.paymentMethod = 'Bayar di kasir / QRIS manual',
+    this.paymentMethod = 'Transfer BCA / ShopeePay',
+    this.paymentProofLabel = 'Bukti bayar terlampir',
   });
 
   final String code;
   final String customerName;
   final String phone;
+  final String note;
   final List<OrderItem> items;
-  final String diningMode;
   final DateTime createdAt;
+  final DateTime readyDate;
   OrderStatus status;
   String paymentMethod;
+  String paymentProofLabel;
 
   int get total => items.fold(0, (sum, item) => sum + item.subtotal);
+  int get totalPortions => items.fold(0, (sum, item) => sum + item.qty);
 }
 
 class WaroengKolongApp extends StatefulWidget {
@@ -97,46 +95,30 @@ class WaroengKolongApp extends StatefulWidget {
 class _WaroengKolongAppState extends State<WaroengKolongApp> {
   AppRole _role = AppRole.customer;
   int _tabIndex = 0;
-  String _customerName = 'Aditya';
-  String _phone = '08xxxxxxxxxx';
-  String _diningMode = 'Ambil di stan';
+  bool _paymentProofSelected = false;
+
+  final TextEditingController _nameController = TextEditingController(
+    text: 'Aditya',
+  );
+  final TextEditingController _phoneController = TextEditingController(
+    text: '08xxxxxxxxxx',
+  );
+  final TextEditingController _noteController = TextEditingController();
   final List<CartLine> _cart = <CartLine>[];
 
   final List<MenuItem> _menu = <MenuItem>[
     const MenuItem(
-      id: 'm1',
-      name: 'Nasi Ayam Kolong',
-      category: 'Makanan',
-      price: 18000,
-      description: 'Nasi hangat, ayam bumbu, sambal, lalap.',
+      id: 'mie-rebus-medan',
+      name: 'Mie Rebus Medan',
+      price: 17000,
+      description:
+          'Kuah khas Medan, bumbu meresap, fresh cooked untuk order acara.',
     ),
     const MenuItem(
-      id: 'm2',
-      name: 'Mie Goreng Stan',
-      category: 'Makanan',
+      id: 'lontong-medan',
+      name: 'Lontong Medan',
       price: 15000,
-      description: 'Mie goreng cepat saji dengan topping telur.',
-    ),
-    const MenuItem(
-      id: 'm3',
-      name: 'Pisang Coklat',
-      category: 'Cemilan',
-      price: 12000,
-      description: 'Cemilan manis untuk teman nongkrong.',
-    ),
-    const MenuItem(
-      id: 'd1',
-      name: 'Es Teh Manis',
-      category: 'Minuman',
-      price: 5000,
-      description: 'Teh manis dingin.',
-    ),
-    const MenuItem(
-      id: 'd2',
-      name: 'Kopi Tubruk',
-      category: 'Minuman',
-      price: 8000,
-      description: 'Kopi panas khas stan.',
+      description: 'Lontong Medan halal dengan cita rasa Waroeng Kolong.',
     ),
   ];
 
@@ -145,20 +127,23 @@ class _WaroengKolongAppState extends State<WaroengKolongApp> {
       code: 'WK-001',
       customerName: 'Rian',
       phone: '0812xxxx111',
-      diningMode: 'Ambil di stan',
-      createdAt: DateTime.now().subtract(const Duration(minutes: 12)),
+      note: 'Mie dipisah, pedas sedang',
+      createdAt: DateTime.now().subtract(const Duration(hours: 2)),
+      readyDate: DateTime.now().add(const Duration(days: 3)),
       status: OrderStatus.diproses,
       items: const <OrderItem>[
-        OrderItem(
-          name: 'Nasi Ayam Kolong',
-          qty: 2,
-          price: 18000,
-          note: 'Sambal dipisah',
-        ),
-        OrderItem(name: 'Es Teh Manis', qty: 2, price: 5000),
+        OrderItem(name: 'Mie Rebus Medan', qty: 20, price: 17000),
       ],
     ),
   ];
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _phoneController.dispose();
+    _noteController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -167,40 +152,39 @@ class _WaroengKolongAppState extends State<WaroengKolongApp> {
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color(0xFF9A3412),
-          primary: const Color(0xFF9A3412),
-          secondary: const Color(0xFFF59E0B),
-          surface: const Color(0xFFFFFBEB),
+          seedColor: const Color(0xFFC2410C),
+          primary: const Color(0xFFC2410C),
+          secondary: const Color(0xFFFACC15),
+          surface: const Color(0xFFFFF7ED),
         ),
+        fontFamily: 'Roboto',
         useMaterial3: true,
-        scaffoldBackgroundColor: const Color(0xFFFFFBEB),
+        scaffoldBackgroundColor: const Color(0xFF431407),
       ),
       home: Scaffold(
         appBar: AppBar(
-          title: const Text('Waroeng Kolong'),
-          backgroundColor: const Color(0xFF431407),
-          foregroundColor: Colors.white,
+          title: const Text('WAROENG KOLONG'),
+          centerTitle: true,
+          backgroundColor: const Color(0xFF1C120B),
+          foregroundColor: const Color(0xFFFFF7ED),
           actions: <Widget>[
             Padding(
-              padding: const EdgeInsets.only(right: 12),
+              padding: const EdgeInsets.only(right: 10),
               child: DropdownButtonHideUnderline(
                 child: DropdownButton<AppRole>(
                   value: _role,
-                  dropdownColor: const Color(0xFF7C2D12),
-                  iconEnabledColor: Colors.white,
+                  dropdownColor: const Color(0xFF431407),
+                  iconEnabledColor: const Color(0xFFFFF7ED),
                   style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w700,
+                    color: Color(0xFFFFF7ED),
+                    fontWeight: FontWeight.w800,
                   ),
                   items: const <DropdownMenuItem<AppRole>>[
                     DropdownMenuItem(
                       value: AppRole.customer,
                       child: Text('Customer'),
                     ),
-                    DropdownMenuItem(
-                      value: AppRole.staff,
-                      child: Text('POS Staff'),
-                    ),
+                    DropdownMenuItem(value: AppRole.staff, child: Text('POS')),
                     DropdownMenuItem(
                       value: AppRole.admin,
                       child: Text('Admin'),
@@ -221,6 +205,7 @@ class _WaroengKolongAppState extends State<WaroengKolongApp> {
         body: SafeArea(child: _buildBody()),
         bottomNavigationBar: NavigationBar(
           selectedIndex: _tabIndex,
+          backgroundColor: const Color(0xFFFFF7ED),
           onDestinationSelected: (int index) =>
               setState(() => _tabIndex = index),
           destinations: _destinations,
@@ -235,30 +220,24 @@ class _WaroengKolongAppState extends State<WaroengKolongApp> {
         return const <NavigationDestination>[
           NavigationDestination(
             icon: Icon(Icons.restaurant_menu),
-            label: 'Menu',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.shopping_cart),
-            label: 'Keranjang',
+            label: 'Order',
           ),
           NavigationDestination(
             icon: Icon(Icons.receipt_long),
-            label: 'Order Saya',
+            label: 'Pesanan',
           ),
         ];
       case AppRole.staff:
         return const <NavigationDestination>[
-          NavigationDestination(icon: Icon(Icons.point_of_sale), label: 'POS'),
-          NavigationDestination(icon: Icon(Icons.check_circle), label: 'Siap'),
           NavigationDestination(
-            icon: Icon(Icons.summarize),
-            label: 'Ringkasan',
+            icon: Icon(Icons.point_of_sale),
+            label: 'Order Masuk',
           ),
+          NavigationDestination(icon: Icon(Icons.check_circle), label: 'Siap'),
         ];
       case AppRole.admin:
         return const <NavigationDestination>[
           NavigationDestination(icon: Icon(Icons.inventory_2), label: 'Menu'),
-          NavigationDestination(icon: Icon(Icons.people), label: 'Staf'),
           NavigationDestination(icon: Icon(Icons.analytics), label: 'Laporan'),
         ];
     }
@@ -267,129 +246,460 @@ class _WaroengKolongAppState extends State<WaroengKolongApp> {
   Widget _buildBody() {
     switch (_role) {
       case AppRole.customer:
-        return <Widget>[
-          _customerMenu(),
-          _cartPage(),
-          _customerOrders(),
-        ][_tabIndex];
+        return <Widget>[_customerOrderPage(), _customerOrders()][_tabIndex];
       case AppRole.staff:
-        return <Widget>[
-          _posOrders(),
-          _readyOrders(),
-          _salesSummary(),
-        ][_tabIndex];
+        return <Widget>[_posOrders(), _readyOrders()][_tabIndex];
       case AppRole.admin:
-        return <Widget>[_adminMenu(), _staffPage(), _salesSummary()][_tabIndex];
+        return <Widget>[_adminMenu(), _salesSummary()][_tabIndex];
     }
   }
 
-  Widget _customerMenu() {
-    final Map<String, List<MenuItem>> grouped = <String, List<MenuItem>>{};
-    for (final MenuItem item in _menu) {
-      grouped.putIfAbsent(item.category, () => <MenuItem>[]).add(item);
-    }
+  Widget _customerOrderPage() {
+    final DateTime readyDate = _readyDate();
+    final int total = _cart.fold(
+      0,
+      (int sum, CartLine line) => sum + line.subtotal,
+    );
+    final int portions = _cart.fold(
+      0,
+      (int sum, CartLine line) => sum + line.qty,
+    );
 
     return ListView(
       padding: const EdgeInsets.all(16),
       children: <Widget>[
-        _heroCard(),
+        _webLikeHero(),
         const SizedBox(height: 16),
-        ...grouped.entries.expand((MapEntry<String, List<MenuItem>> entry) {
-          return <Widget>[
-            Text(
-              entry.key,
-              style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800),
-            ),
-            const SizedBox(height: 8),
-            ...entry.value.map(_menuCard),
-            const SizedBox(height: 12),
-          ];
-        }),
+        const Text(
+          'ORDER ONLINE',
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            color: Color(0xFFFFF7ED),
+            fontSize: 24,
+            fontWeight: FontWeight.w900,
+            letterSpacing: 1.2,
+          ),
+        ),
+        const SizedBox(height: 4),
+        const Text(
+          'Pilih menu kesukaan Anda di bawah ini',
+          textAlign: TextAlign.center,
+          style: TextStyle(color: Color(0xFFFED7AA)),
+        ),
+        const SizedBox(height: 14),
+        ..._menu.map(_webMenuCard),
+        const SizedBox(height: 12),
+        _cartPanel(total: total, portions: portions, readyDate: readyDate),
       ],
     );
   }
 
-  Widget _heroCard() {
+  Widget _webLikeHero() {
     return Container(
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(24),
+        borderRadius: BorderRadius.circular(26),
         gradient: const LinearGradient(
-          colors: <Color>[Color(0xFF431407), Color(0xFF9A3412)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: <Color>[
+            Color(0xFF1C120B),
+            Color(0xFF7C2D12),
+            Color(0xFFC2410C),
+          ],
         ),
+        border: Border.all(color: const Color(0xFFFACC15), width: 1.4),
       ),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: const <Widget>[
-          Text(
-            'Order dari app, ambil di stan',
+        children: <Widget>[
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+            decoration: BoxDecoration(
+              color: const Color(0xFFFACC15),
+              borderRadius: BorderRadius.circular(999),
+            ),
+            child: const Text(
+              'WAROENG KOLONG',
+              style: TextStyle(
+                color: Color(0xFF431407),
+                fontWeight: FontWeight.w900,
+                letterSpacing: 1.4,
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
+          const Text(
+            'Cita Rasa Meresap Sampai ke Hati',
+            textAlign: TextAlign.center,
+            style: TextStyle(color: Color(0xFFFFEDD5)),
+          ),
+          const SizedBox(height: 16),
+          const Text(
+            'Mie Rebus Medan',
+            textAlign: TextAlign.center,
             style: TextStyle(
               color: Colors.white,
-              fontSize: 22,
+              fontSize: 32,
               fontWeight: FontWeight.w900,
             ),
           ),
-          SizedBox(height: 8),
-          Text(
-            'Pilih menu, dapat kode order, lalu sebut kode + atas nama saat sampai di Waroeng Kolong.',
-            style: TextStyle(color: Color(0xFFFFEDD5)),
+          const Text(
+            '&',
+            style: TextStyle(
+              color: Color(0xFFFACC15),
+              fontSize: 24,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+          const Text(
+            'Lontong Medan',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 28,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+          const SizedBox(height: 14),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            alignment: WrapAlignment.center,
+            children: const <Widget>[
+              _HeroBadge('🌙 100% Halal'),
+              _HeroBadge('🔥 Fresh Cooked'),
+              _HeroBadge('💎 Premium Taste'),
+            ],
           ),
         ],
       ),
     );
   }
 
-  Widget _menuCard(MenuItem item) {
+  Widget _webMenuCard(MenuItem item) {
     final bool inCart = _cart.any((CartLine line) => line.item.id == item.id);
+    return InkWell(
+      onTap: item.available ? () => _addToCart(item) : null,
+      borderRadius: BorderRadius.circular(22),
+      child: Card(
+        color: const Color(0xFFFFF7ED),
+        elevation: 4,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Row(
+            children: <Widget>[
+              Container(
+                width: 68,
+                height: 68,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFED7AA),
+                  borderRadius: BorderRadius.circular(18),
+                  border: Border.all(color: const Color(0xFFF97316)),
+                ),
+                child: const Icon(
+                  Icons.ramen_dining,
+                  color: Color(0xFFC2410C),
+                  size: 34,
+                ),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    Text(
+                      item.name,
+                      style: const TextStyle(
+                        color: Color(0xFF431407),
+                        fontSize: 18,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      item.description,
+                      style: const TextStyle(color: Color(0xFF7C2D12)),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      _rupiah(item.price),
+                      style: const TextStyle(
+                        color: Color(0xFFC2410C),
+                        fontSize: 17,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    Text(
+                      inCart ? 'Klik untuk tambah 1 porsi' : 'Klik untuk pesan',
+                      style: const TextStyle(
+                        color: Color(0xFF9A3412),
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const Icon(Icons.add_circle, color: Color(0xFFC2410C)),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _cartPanel({
+    required int total,
+    required int portions,
+    required DateTime readyDate,
+  }) {
+    final bool canSubmit = _canSubmitOrder;
     return Card(
+      color: const Color(0xFFFFF7ED),
+      elevation: 5,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
       child: Padding(
-        padding: const EdgeInsets.all(14),
-        child: Row(
+        padding: const EdgeInsets.all(16),
+        child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: <Widget>[
-            CircleAvatar(
-              radius: 28,
-              backgroundColor: item.available
-                  ? const Color(0xFFFED7AA)
-                  : Colors.grey.shade300,
-              child: Icon(
-                item.category == 'Minuman'
-                    ? Icons.local_drink
-                    : Icons.ramen_dining,
-                color: const Color(0xFF9A3412),
+            const Text(
+              '🛒 Keranjang Anda',
+              style: TextStyle(
+                color: Color(0xFF431407),
+                fontSize: 22,
+                fontWeight: FontWeight.w900,
               ),
             ),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: <Widget>[
-                  Text(
-                    item.name,
-                    style: const TextStyle(
-                      fontWeight: FontWeight.w800,
-                      fontSize: 16,
-                    ),
-                  ),
-                  Text(item.description),
-                  const SizedBox(height: 6),
-                  Text(
-                    _rupiah(item.price),
-                    style: const TextStyle(
-                      fontWeight: FontWeight.w800,
+            const SizedBox(height: 10),
+            if (_cart.isEmpty)
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: 14),
+                child: Center(
+                  child: Text(
+                    'Keranjang masih kosong',
+                    style: TextStyle(
                       color: Color(0xFF9A3412),
+                      fontWeight: FontWeight.w700,
                     ),
                   ),
-                ],
+                ),
+              )
+            else
+              ..._cart.map(_cartLine),
+            const Divider(height: 28),
+            _InfoRow(label: 'Total:', value: _rupiah(total), bold: true),
+            const SizedBox(height: 12),
+            _orderRules(readyDate: readyDate, portions: portions),
+            const SizedBox(height: 14),
+            _paymentBox(),
+            const SizedBox(height: 14),
+            TextField(
+              controller: _nameController,
+              decoration: const InputDecoration(
+                labelText: 'Nama Lengkap Anda',
+                border: OutlineInputBorder(),
+              ),
+              onChanged: (_) => setState(() {}),
+            ),
+            const SizedBox(height: 10),
+            TextField(
+              controller: _phoneController,
+              decoration: const InputDecoration(
+                labelText: 'No. WhatsApp Anda (Cth: 0812...)',
+                border: OutlineInputBorder(),
+              ),
+              keyboardType: TextInputType.phone,
+              onChanged: (_) => setState(() {}),
+            ),
+            const SizedBox(height: 10),
+            TextField(
+              controller: _noteController,
+              decoration: const InputDecoration(
+                labelText: 'Catatan (Cth: Pedes dikit aja, mie dipisah)',
+                border: OutlineInputBorder(),
+              ),
+              minLines: 1,
+              maxLines: 3,
+            ),
+            const SizedBox(height: 10),
+            OutlinedButton.icon(
+              onPressed: () => setState(
+                () => _paymentProofSelected = !_paymentProofSelected,
+              ),
+              icon: Icon(
+                _paymentProofSelected ? Icons.check_circle : Icons.upload_file,
+              ),
+              label: Text(
+                _paymentProofSelected
+                    ? 'Bukti bayar / screenshot sudah dipilih'
+                    : 'Wajib Upload Bukti Bayar / Screenshot',
               ),
             ),
-            FilledButton.tonalIcon(
-              onPressed: item.available ? () => _addToCart(item) : null,
-              icon: Icon(inCart ? Icons.add_task : Icons.add),
-              label: Text(inCart ? 'Tambah' : 'Order'),
+            const SizedBox(height: 6),
+            const Text(
+              'MVP Android: upload file asli akan disambungkan ke API. Saat ini tombol ini menandai bukti bayar sudah dipilih untuk validasi order.',
+              style: TextStyle(fontSize: 12, color: Color(0xFF7C2D12)),
             ),
+            const SizedBox(height: 14),
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton.icon(
+                onPressed: canSubmit ? _submitOrder : null,
+                icon: const Icon(Icons.payments),
+                label: const Text('BUAT PESANAN & BAYAR 📲'),
+              ),
+            ),
+            if (!canSubmit) ...<Widget>[
+              const SizedBox(height: 8),
+              Text(
+                _submitHint,
+                style: const TextStyle(
+                  color: Color(0xFFB91C1C),
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ],
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _cartLine(CartLine line) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: line.validMinimum
+              ? const Color(0xFFFED7AA)
+              : const Color(0xFFDC2626),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          Row(
+            children: <Widget>[
+              Expanded(
+                child: Text(
+                  line.item.name,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w900,
+                    color: Color(0xFF431407),
+                  ),
+                ),
+              ),
+              IconButton(
+                onPressed: () =>
+                    setState(() => line.qty = (line.qty - 1).clamp(1, 999)),
+                icon: const Icon(Icons.remove_circle_outline),
+              ),
+              Text(
+                '${line.qty}',
+                style: const TextStyle(fontWeight: FontWeight.w900),
+              ),
+              IconButton(
+                onPressed: () => setState(() => line.qty += 1),
+                icon: const Icon(Icons.add_circle_outline),
+              ),
+              IconButton(
+                onPressed: () => setState(() => _cart.remove(line)),
+                icon: const Icon(Icons.delete_outline),
+              ),
+            ],
+          ),
+          _InfoRow(label: 'Subtotal', value: _rupiah(line.subtotal)),
+          if (!line.validMinimum)
+            const Text(
+              'Minimal 20 porsi untuk menu ini.',
+              style: TextStyle(
+                color: Color(0xFFB91C1C),
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _orderRules({required DateTime readyDate, required int portions}) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFEDD5),
+        borderRadius: BorderRadius.circular(18),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          const Text(
+            'Info order online:',
+            style: TextStyle(
+              fontWeight: FontWeight.w900,
+              color: Color(0xFF431407),
+            ),
+          ),
+          const SizedBox(height: 4),
+          const Text(
+            'Minimal 20 porsi per menu dan pemesanan H-3.',
+            style: TextStyle(color: Color(0xFF7C2D12)),
+          ),
+          Text(
+            'Ready paling cepat ${_dateLabel(readyDate)}.',
+            style: const TextStyle(
+              color: Color(0xFF7C2D12),
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          Text(
+            'Jumlah pesanan: $portions porsi. Setiap menu yang dipesan minimal 20 porsi.',
+            style: const TextStyle(color: Color(0xFF7C2D12)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _paymentBox() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: const Color(0xFFFED7AA)),
+      ),
+      child: const Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          Text(
+            'Silakan melakukan pembayaran melalui Transfer Bank atau E-Wallet di bawah ini:',
+            style: TextStyle(color: Color(0xFF431407)),
+          ),
+          SizedBox(height: 8),
+          Text(
+            '🏦 Bank Transfer:',
+            style: TextStyle(
+              fontWeight: FontWeight.w900,
+              color: Color(0xFF431407),
+            ),
+          ),
+          Text('BCA: 0461964345\na/n Atika Zuharniaty Kesuma'),
+          SizedBox(height: 8),
+          Text(
+            '📱 E-Wallet:',
+            style: TextStyle(
+              fontWeight: FontWeight.w900,
+              color: Color(0xFF431407),
+            ),
+          ),
+          Text('ShopeePay: 082179717972\na/n Atika Zuharniaty Kesuma'),
+        ],
       ),
     );
   }
@@ -407,140 +717,46 @@ class _WaroengKolongAppState extends State<WaroengKolongApp> {
     });
   }
 
-  Widget _cartPage() {
-    final int total = _cart.fold(
-      0,
-      (int sum, CartLine line) => sum + line.subtotal,
-    );
-    return ListView(
-      padding: const EdgeInsets.all(16),
-      children: <Widget>[
-        const Text(
-          'Keranjang Order',
-          style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900),
-        ),
-        const SizedBox(height: 12),
-        TextField(
-          decoration: const InputDecoration(
-            labelText: 'Atas nama',
-            border: OutlineInputBorder(),
-          ),
-          controller: TextEditingController(text: _customerName),
-          onChanged: (String value) => _customerName = value,
-        ),
-        const SizedBox(height: 10),
-        TextField(
-          decoration: const InputDecoration(
-            labelText: 'Nomor HP',
-            border: OutlineInputBorder(),
-          ),
-          controller: TextEditingController(text: _phone),
-          keyboardType: TextInputType.phone,
-          onChanged: (String value) => _phone = value,
-        ),
-        const SizedBox(height: 10),
-        SegmentedButton<String>(
-          segments: const <ButtonSegment<String>>[
-            ButtonSegment(
-              value: 'Ambil di stan',
-              label: Text('Ambil di stan'),
-              icon: Icon(Icons.storefront),
-            ),
-            ButtonSegment(
-              value: 'Makan di tempat',
-              label: Text('Makan di tempat'),
-              icon: Icon(Icons.table_restaurant),
-            ),
-          ],
-          selected: <String>{_diningMode},
-          onSelectionChanged: (Set<String> value) =>
-              setState(() => _diningMode = value.first),
-        ),
-        const SizedBox(height: 16),
-        if (_cart.isEmpty)
-          const _EmptyState(
-            icon: Icons.shopping_cart_outlined,
-            title: 'Keranjang masih kosong',
-            message: 'Pilih menu dulu dari tab Menu.',
-          ),
-        ..._cart.map(_cartLine),
-        const Divider(height: 28),
-        _InfoRow(label: 'Total', value: _rupiah(total), bold: true),
-        const SizedBox(height: 12),
-        FilledButton.icon(
-          onPressed: _cart.isEmpty ? null : _submitOrder,
-          icon: const Icon(Icons.qr_code_2),
-          label: const Text('Submit Order & Buat Kode'),
-        ),
-      ],
-    );
+  bool get _canSubmitOrder {
+    return _cart.isNotEmpty &&
+        _cart.every((CartLine line) => line.validMinimum) &&
+        _nameController.text.trim().isNotEmpty &&
+        _phoneController.text.trim().isNotEmpty &&
+        _paymentProofSelected;
   }
 
-  Widget _cartLine(CartLine line) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: <Widget>[
-            Row(
-              children: <Widget>[
-                Expanded(
-                  child: Text(
-                    line.item.name,
-                    style: const TextStyle(fontWeight: FontWeight.w800),
-                  ),
-                ),
-                IconButton(
-                  onPressed: () =>
-                      setState(() => line.qty = (line.qty - 1).clamp(1, 99)),
-                  icon: const Icon(Icons.remove_circle_outline),
-                ),
-                Text('${line.qty}'),
-                IconButton(
-                  onPressed: () => setState(() => line.qty += 1),
-                  icon: const Icon(Icons.add_circle_outline),
-                ),
-                IconButton(
-                  onPressed: () => setState(() => _cart.remove(line)),
-                  icon: const Icon(Icons.delete_outline),
-                ),
-              ],
-            ),
-            TextField(
-              decoration: const InputDecoration(
-                labelText: 'Catatan item, contoh: pedas sedang / tanpa sayur',
-              ),
-              onChanged: (String value) => line.note = value,
-            ),
-            const SizedBox(height: 6),
-            Text(
-              _rupiah(line.subtotal),
-              style: const TextStyle(fontWeight: FontWeight.w700),
-            ),
-          ],
-        ),
-      ),
-    );
+  String get _submitHint {
+    if (_cart.isEmpty) {
+      return 'Pilih menu dulu.';
+    }
+    if (_cart.any((CartLine line) => !line.validMinimum)) {
+      return 'Setiap menu yang dipesan minimal 20 porsi.';
+    }
+    if (_nameController.text.trim().isEmpty ||
+        _phoneController.text.trim().isEmpty) {
+      return 'Nama dan WhatsApp wajib diisi.';
+    }
+    if (!_paymentProofSelected) {
+      return 'Bukti bayar / screenshot wajib ditandai dulu.';
+    }
+    return '';
   }
 
   void _submitOrder() {
     final String code = 'WK-${(_orders.length + 1).toString().padLeft(3, '0')}';
     final Order order = Order(
       code: code,
-      customerName: _customerName.trim().isEmpty
-          ? 'Pelanggan'
-          : _customerName.trim(),
-      phone: _phone,
-      diningMode: _diningMode,
+      customerName: _nameController.text.trim(),
+      phone: _phoneController.text.trim(),
+      note: _noteController.text.trim(),
       createdAt: DateTime.now(),
+      readyDate: _readyDate(),
       items: _cart
           .map(
             (CartLine line) => OrderItem(
               name: line.item.name,
               qty: line.qty,
               price: line.item.price,
-              note: line.note,
             ),
           )
           .toList(),
@@ -548,35 +764,29 @@ class _WaroengKolongAppState extends State<WaroengKolongApp> {
     setState(() {
       _orders.insert(0, order);
       _cart.clear();
-      _tabIndex = 2;
+      _paymentProofSelected = false;
+      _tabIndex = 1;
     });
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text('Order $code dibuat atas nama ${order.customerName}'),
+        content: Text('Pesanan $code dibuat atas nama ${order.customerName}'),
       ),
     );
   }
 
   Widget _customerOrders() {
+    final String name = _nameController.text.trim().toLowerCase();
     final List<Order> customerOrders = _orders
-        .where(
-          (Order order) =>
-              order.customerName.toLowerCase() == _customerName.toLowerCase(),
-        )
+        .where((Order order) => order.customerName.toLowerCase() == name)
         .toList();
-    return ListView(
-      padding: const EdgeInsets.all(16),
+    return _pageShell(
+      title: 'Pesanan Saya',
       children: <Widget>[
-        const Text(
-          'Order Saya',
-          style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900),
-        ),
-        const SizedBox(height: 12),
         if (customerOrders.isEmpty)
           const _EmptyState(
             icon: Icons.receipt_long,
-            title: 'Belum ada order',
-            message: 'Order yang dibuat dari keranjang akan tampil di sini.',
+            title: 'Belum ada pesanan',
+            message: 'Pesanan yang dibuat dari app akan tampil di sini.',
           ),
         ...customerOrders.map(_orderCard),
       ],
@@ -584,26 +794,17 @@ class _WaroengKolongAppState extends State<WaroengKolongApp> {
   }
 
   Widget _posOrders() {
-    return ListView(
-      padding: const EdgeInsets.all(16),
-      children: <Widget>[
-        const Text(
-          'POS - Order Masuk',
-          style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900),
-        ),
-        const SizedBox(height: 8),
-        const Text(
-          'Staf bisa cari kode/nama dari pelanggan, lalu update status order.',
-        ),
-        const SizedBox(height: 12),
-        ..._orders
-            .where(
-              (Order order) =>
-                  order.status != OrderStatus.selesai &&
-                  order.status != OrderStatus.batal,
-            )
-            .map(_orderCard),
-      ],
+    return _pageShell(
+      title: 'POS - Order Masuk',
+      subtitle: 'Cari kode/nama dari pelanggan, lalu update status pesanan.',
+      children: _orders
+          .where(
+            (Order order) =>
+                order.status != OrderStatus.selesai &&
+                order.status != OrderStatus.batal,
+          )
+          .map(_orderCard)
+          .toList(),
     );
   }
 
@@ -611,19 +812,14 @@ class _WaroengKolongAppState extends State<WaroengKolongApp> {
     final List<Order> ready = _orders
         .where((Order order) => order.status == OrderStatus.siapDiambil)
         .toList();
-    return ListView(
-      padding: const EdgeInsets.all(16),
+    return _pageShell(
+      title: 'Order Siap Diambil',
       children: <Widget>[
-        const Text(
-          'Order Siap Diambil',
-          style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900),
-        ),
-        const SizedBox(height: 12),
         if (ready.isEmpty)
           const _EmptyState(
             icon: Icons.check_circle_outline,
             title: 'Belum ada order siap',
-            message: 'Order yang statusnya Siap Diambil akan tampil di sini.',
+            message: 'Order status Siap Diambil akan tampil di sini.',
           ),
         ...ready.map(_orderCard),
       ],
@@ -632,6 +828,8 @@ class _WaroengKolongAppState extends State<WaroengKolongApp> {
 
   Widget _orderCard(Order order) {
     return Card(
+      color: const Color(0xFFFFF7ED),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       child: Padding(
         padding: const EdgeInsets.all(14),
         child: Column(
@@ -645,22 +843,23 @@ class _WaroengKolongAppState extends State<WaroengKolongApp> {
                     style: const TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.w900,
+                      color: Color(0xFF431407),
                     ),
                   ),
                 ),
                 Chip(label: Text(_statusLabel(order.status))),
               ],
             ),
-            Text('${order.diningMode} • ${_shortTime(order.createdAt)}'),
+            Text('WA: ${order.phone} • Ready ${_dateLabel(order.readyDate)}'),
+            if (order.note.isNotEmpty) Text('Catatan: ${order.note}'),
             const SizedBox(height: 8),
             ...order.items.map(
-              (OrderItem item) => Text(
-                '• ${item.qty}x ${item.name}${item.note.isEmpty ? '' : ' — ${item.note}'}',
-              ),
+              (OrderItem item) => Text('• ${item.qty}x ${item.name}'),
             ),
             const Divider(),
             _InfoRow(label: 'Total', value: _rupiah(order.total), bold: true),
             _InfoRow(label: 'Pembayaran', value: order.paymentMethod),
+            _InfoRow(label: 'Bukti bayar', value: order.paymentProofLabel),
             if (_role != AppRole.customer) ...<Widget>[
               const SizedBox(height: 8),
               Wrap(
@@ -682,59 +881,29 @@ class _WaroengKolongAppState extends State<WaroengKolongApp> {
   }
 
   Widget _adminMenu() {
-    return ListView(
-      padding: const EdgeInsets.all(16),
-      children: <Widget>[
-        const Text(
-          'Admin - Kelola Menu',
-          style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900),
-        ),
-        const SizedBox(height: 8),
-        const Text(
-          'MVP awal: ubah status tersedia/habis dari app. Edit harga/nama penuh nanti tersambung API admin.',
-        ),
-        const SizedBox(height: 12),
-        ..._menu.asMap().entries.map((MapEntry<int, MenuItem> entry) {
-          final int index = entry.key;
-          final MenuItem item = entry.value;
-          return Card(
-            child: SwitchListTile(
-              title: Text(
-                item.name,
-                style: const TextStyle(fontWeight: FontWeight.w800),
-              ),
-              subtitle: Text('${item.category} • ${_rupiah(item.price)}'),
-              value: item.available,
-              onChanged: (bool value) => setState(
-                () => _menu[index] = item.copyWith(available: value),
+    return _pageShell(
+      title: 'Admin - Menu Web',
+      subtitle: 'Menu mengikuti landing/order page Waroeng Kolong.',
+      children: _menu.asMap().entries.map((MapEntry<int, MenuItem> entry) {
+        final int index = entry.key;
+        final MenuItem item = entry.value;
+        return Card(
+          color: const Color(0xFFFFF7ED),
+          child: SwitchListTile(
+            title: Text(
+              item.name,
+              style: const TextStyle(
+                fontWeight: FontWeight.w900,
+                color: Color(0xFF431407),
               ),
             ),
-          );
-        }),
-      ],
-    );
-  }
-
-  Widget _staffPage() {
-    return ListView(
-      padding: const EdgeInsets.all(16),
-      children: const <Widget>[
-        Text(
-          'Admin - User Staf',
-          style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900),
-        ),
-        SizedBox(height: 12),
-        _InfoTile(
-          icon: Icons.person,
-          title: 'Kasir Stan',
-          subtitle: 'Role: staff/POS • akses order masuk dan update status',
-        ),
-        _InfoTile(
-          icon: Icons.admin_panel_settings,
-          title: 'Owner',
-          subtitle: 'Role: admin • akses menu, staf, laporan',
-        ),
-      ],
+            subtitle: Text('${_rupiah(item.price)} • minimal 20 porsi/menu'),
+            value: item.available,
+            onChanged: (bool value) =>
+                setState(() => _menu[index] = item.copyWith(available: value)),
+          ),
+        );
+      }).toList(),
     );
   }
 
@@ -745,29 +914,52 @@ class _WaroengKolongAppState extends State<WaroengKolongApp> {
     final int activeRevenue = _orders
         .where((Order order) => order.status != OrderStatus.batal)
         .fold(0, (int sum, Order order) => sum + order.total);
-    return ListView(
-      padding: const EdgeInsets.all(16),
+    return _pageShell(
+      title: 'Ringkasan Penjualan',
       children: <Widget>[
-        const Text(
-          'Ringkasan Penjualan',
-          style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900),
-        ),
-        const SizedBox(height: 12),
         _MetricCard(
           label: 'Order aktif',
           value:
               '${_orders.where((Order order) => order.status != OrderStatus.selesai && order.status != OrderStatus.batal).length}',
         ),
+        _MetricCard(
+          label: 'Porsi aktif',
+          value:
+              '${_orders.where((Order order) => order.status != OrderStatus.batal).fold(0, (int sum, Order order) => sum + order.totalPortions)}',
+        ),
         _MetricCard(label: 'Omzet potensial', value: _rupiah(activeRevenue)),
         _MetricCard(label: 'Omzet selesai', value: _rupiah(doneRevenue)),
-        _MetricCard(
-          label: 'Menu tersedia',
-          value:
-              '${_menu.where((MenuItem item) => item.available).length}/${_menu.length}',
-        ),
       ],
     );
   }
+
+  Widget _pageShell({
+    required String title,
+    String? subtitle,
+    required List<Widget> children,
+  }) {
+    return ListView(
+      padding: const EdgeInsets.all(16),
+      children: <Widget>[
+        Text(
+          title,
+          style: const TextStyle(
+            color: Color(0xFFFFF7ED),
+            fontSize: 24,
+            fontWeight: FontWeight.w900,
+          ),
+        ),
+        if (subtitle != null) ...<Widget>[
+          const SizedBox(height: 6),
+          Text(subtitle, style: const TextStyle(color: Color(0xFFFED7AA))),
+        ],
+        const SizedBox(height: 12),
+        ...children,
+      ],
+    );
+  }
+
+  DateTime _readyDate() => DateTime.now().add(const Duration(days: 3));
 
   String _rupiah(int value) {
     final String raw = value.toString();
@@ -777,7 +969,7 @@ class _WaroengKolongAppState extends State<WaroengKolongApp> {
       out.write(raw[i]);
       if (remaining > 1 && remaining % 3 == 1) out.write('.');
     }
-    return 'Rp$out';
+    return 'Rp $out';
   }
 
   String _statusLabel(OrderStatus status) {
@@ -797,8 +989,47 @@ class _WaroengKolongAppState extends State<WaroengKolongApp> {
     }
   }
 
-  String _shortTime(DateTime value) {
-    return '${value.hour.toString().padLeft(2, '0')}:${value.minute.toString().padLeft(2, '0')}';
+  String _dateLabel(DateTime value) {
+    const List<String> months = <String>[
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'Mei',
+      'Jun',
+      'Jul',
+      'Agu',
+      'Sep',
+      'Okt',
+      'Nov',
+      'Des',
+    ];
+    return '${value.day} ${months[value.month - 1]} ${value.year}';
+  }
+}
+
+class _HeroBadge extends StatelessWidget {
+  const _HeroBadge(this.label);
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.14),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: Colors.white24),
+      ),
+      child: Text(
+        label,
+        style: const TextStyle(
+          color: Color(0xFFFFF7ED),
+          fontWeight: FontWeight.w800,
+        ),
+      ),
+    );
   }
 }
 
@@ -819,7 +1050,7 @@ class _InfoRow extends StatelessWidget {
           Text(
             value,
             style: TextStyle(
-              fontWeight: bold ? FontWeight.w900 : FontWeight.w600,
+              fontWeight: bold ? FontWeight.w900 : FontWeight.w700,
             ),
           ),
         ],
@@ -837,35 +1068,17 @@ class _MetricCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Card(
+      color: const Color(0xFFFFF7ED),
       child: ListTile(
         title: Text(label),
         trailing: Text(
           value,
-          style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w900),
+          style: const TextStyle(
+            fontSize: 20,
+            fontWeight: FontWeight.w900,
+            color: Color(0xFFC2410C),
+          ),
         ),
-      ),
-    );
-  }
-}
-
-class _InfoTile extends StatelessWidget {
-  const _InfoTile({
-    required this.icon,
-    required this.title,
-    required this.subtitle,
-  });
-
-  final IconData icon;
-  final String title;
-  final String subtitle;
-
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      child: ListTile(
-        leading: Icon(icon),
-        title: Text(title, style: const TextStyle(fontWeight: FontWeight.w800)),
-        subtitle: Text(subtitle),
       ),
     );
   }
@@ -885,15 +1098,20 @@ class _EmptyState extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Card(
+      color: const Color(0xFFFFF7ED),
       child: Padding(
         padding: const EdgeInsets.all(24),
         child: Column(
           children: <Widget>[
-            Icon(icon, size: 48, color: const Color(0xFF9A3412)),
+            Icon(icon, size: 48, color: const Color(0xFFC2410C)),
             const SizedBox(height: 10),
             Text(
               title,
-              style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 18),
+              style: const TextStyle(
+                fontWeight: FontWeight.w900,
+                fontSize: 18,
+                color: Color(0xFF431407),
+              ),
             ),
             const SizedBox(height: 6),
             Text(message, textAlign: TextAlign.center),

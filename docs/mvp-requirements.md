@@ -12,11 +12,14 @@
 
 ### Customer
 
-- Melihat kategori menu.
-- Melihat harga nyata, bukan placeholder.
+- Melihat menu utama sesuai web: `Mie Rebus Medan` Rp17.000 dan `Lontong Medan` Rp15.000.
 - Menambahkan item ke keranjang.
-- Mengisi atas nama dan nomor HP.
-- Memilih mode `Ambil di stan` atau `Makan di tempat`.
+- Mengikuti aturan minimal 20 porsi per menu.
+- Mengikuti aturan pemesanan H-3 dengan ready paling cepat 3 hari dari tanggal order.
+- Melakukan pembayaran via BCA/ShopeePay sesuai instruksi app.
+- Menandai bukti bayar/screenshot sudah dipilih.
+- Mengisi atas nama dan nomor WhatsApp.
+- Memilih mode order online H-3.
 - Submit order dan menerima kode order.
 - Melihat status order.
 

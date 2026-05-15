@@ -1,0 +1,13 @@
+{
+  "name": "waroengkolong-backend",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Minimal API MVP for Waroeng Kolong order and POS flow.",
+  "scripts": {
+    "start": "node src/server.js",
+    "test": "node --test"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
